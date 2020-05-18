@@ -111,7 +111,9 @@ std::once_flag KafkaProducerPlugin::shutdownFlag_;
  * Create a vector of all indexes at which substring
  * occurs in payload.
  */
-inline void findAllOccurrences(std::vector<size_t>& occurrences, const std::string& payload, const std::string subString) {
+inline std::vector<size_t> findAllOccurrences(const std::string& payload, const std::string subString) {
+    // Initialize occurrences vector
+    std::vector<size_t> occurrences;
     // Find first occurrence of subString in payload
     size_t idx = payload.find(subString);
     // Until end of string
@@ -121,6 +123,7 @@ inline void findAllOccurrences(std::vector<size_t>& occurrences, const std::stri
         // Find next occurrence of subString
         idx = payload.find(subString, idx + subString.size());
     }
+    return occurrences;
 }
 
 /**
@@ -132,10 +135,8 @@ inline void findAllOccurrences(std::vector<size_t>& occurrences, const std::stri
 inline std::string getMsgName(const std::string& payload) {
     // Searching for "name" key
     const std::string fieldName = "\"name\"";
-    // Initialize occurrences vector
-    std::vector<size_t> occurrences;
     // Find all occurrences of "name" key in payload
-    findAllOccurrences(occurrences, payload, fieldName);
+    auto occurrences = findAllOccurrences(payload, fieldName);
     // Initialize "name" key index
     size_t fieldIndex;
 
