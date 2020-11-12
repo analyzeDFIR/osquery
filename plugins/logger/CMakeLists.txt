@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(pluginsLoggerMain)
 
@@ -64,7 +65,6 @@ function(generatePluginsLoggerAwskinesis)
 
   target_link_libraries(plugins_logger_awskinesis PUBLIC
     osquery_cxx_settings
-    osquery_headers
     osquery_dispatcher
     osquery_process
     osquery_registry
@@ -145,30 +145,29 @@ endfunction()
 
 function(generatePluginsLoggerKafkaproducer)
 
-  if(DEFINED PLATFORM_LINUX OR DEFINED PLATFORM_MACOS)
-    add_osquery_library(plugins_logger_kafkaproducer EXCLUDE_FROM_ALL
-      kafka_producer.cpp
-    )
+  add_osquery_library(plugins_logger_kafkaproducer EXCLUDE_FROM_ALL
+    kafka_producer.cpp
+  )
 
-    enableLinkWholeArchive(plugins_logger_kafkaproducer)
+  enableLinkWholeArchive(plugins_logger_kafkaproducer)
 
-    target_link_libraries(plugins_logger_kafkaproducer PUBLIC
-      osquery_cxx_settings
-      plugins_logger_commondeps
-      osquery_dispatcher
-      osquery_utils_config
-      thirdparty_librdkafka
-    )
+  target_link_libraries(plugins_logger_kafkaproducer PUBLIC
+    osquery_cxx_settings
+    osquery_config
+    osquery_dispatcher
+    osquery_remote_utility
+    osquery_utils_config
+    plugins_config_parsers
+    plugins_logger_commondeps
+    thirdparty_librdkafka
+  )
 
-    set(public_header_files
-      kafka_producer.h
-    )
+  set(public_header_files
+    kafka_producer.h
+  )
 
-    generateIncludeNamespace(plugins_logger_kafkaproducer "plugins/logger" "FILE_ONLY" ${public_header_files})
-    add_test(NAME plugins_logger_tests_kafkaproducerloggertests-test COMMAND plugins_logger_tests_kafkaproducerloggertests-test)
-  else()
-    add_osquery_library(plugins_logger_kafkaproducer INTERFACE)
-  endif()
+  generateIncludeNamespace(plugins_logger_kafkaproducer "plugins/logger" "FILE_ONLY" ${public_header_files})
+  add_test(NAME plugins_logger_tests_kafkaproducerloggertests-test COMMAND plugins_logger_tests_kafkaproducerloggertests-test)
 endfunction()
 
 function(generatePluginsLoggerStdout)

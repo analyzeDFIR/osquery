@@ -1,12 +1,13 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 
 #include <osquery/tables/applications/browser_utils.h>
 #include <osquery/utils/info/platform_type.h>
@@ -51,6 +52,16 @@ static std::vector<fs::path> getChromePaths() {
         "/Library/Application Support/Chromium/%/Extensions/");
   } else {
     chromePaths.push_back("/.config/chromium/%/Extensions/");
+  }
+
+  if (isPlatform(PlatformType::TYPE_WINDOWS)) {
+    chromePaths.push_back(
+        "\\AppData\\Local\\Yandex\\YandexBrowser\\User Data\\%\\Extensions\\");
+  } else if (isPlatform(PlatformType::TYPE_OSX)) {
+    chromePaths.push_back(
+        "/Library/Application Support/Yandex/YandexBrowser/%/Extensions/");
+  } else {
+    chromePaths.push_back("/.config/yandex-browser%/%/Extensions/");
   }
 
   return chromePaths;

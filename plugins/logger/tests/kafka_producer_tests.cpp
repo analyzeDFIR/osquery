@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <gflags/gflags.h>
@@ -18,17 +19,15 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <boost/chrono.hpp>
 
-#include <osquery/core.h>
-#include <osquery/database.h>
-#include <osquery/registry_interface.h>
-#include <osquery/system.h>
+#include <osquery/core/core.h>
+#include <osquery/core/system.h>
+#include <osquery/database/database.h>
+#include <osquery/registry/registry_interface.h>
 #include <osquery/utils/status/status.h>
 
 #include "plugins/logger/kafka_producer.h"
 
 namespace osquery {
-
-DECLARE_bool(disable_database);
 
 class MockKafkaProducerPlugin : public KafkaProducerPlugin {
  public:
@@ -76,11 +75,9 @@ class MockKafkaProducerPlugin : public KafkaProducerPlugin {
 class KafkaProducerPluginTest : public ::testing::Test {
  protected:
   void SetUp() {
-    Initializer::platformSetup();
+    platformSetup();
     registryAndPluginInit();
-    FLAGS_disable_database = true;
-    DatabasePlugin::setAllowOpen(true);
-    DatabasePlugin::initPlugin();
+    initDatabasePluginForTesting();
   }
 };
 
@@ -147,68 +144,118 @@ TEST_F(KafkaProducerPluginTest, getMsgName_tests) {
        "26 19:29:22 2017 UTC\",\"unixTime\":\"1501097362\",\"epoch\":\"0\"}",
        ""},
       // batch mode result without "name" column(s)
-      {"{\"diffResults\":{\"removed\":[{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\""
-      ",\"pid\":\"4453\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":"
-      "\"-1\",\"path\":\"\",\"pid\":\"7230\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\""
-      ":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"8497\",\"state\":\"I\",\"uid\""
-      ":\"0\"},{\"cmdline\":\"osqueryd --verbose --flagfile /etc/osquery/osquery.kafka."
-      "flags\",\"on_disk\":\"1\",\"path\":\"/usr/local/bin/osqueryd\",\"pid\":\"8483\","
-      ",\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose --flagfil"
-      "e /etc/osquery/osquery.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/usr/bin/sudo\""
-      ",\"pid\":\"8482\",,\"state\":\"S\",\"uid\":\"0\"}],\"added\":[{\"cmdline\":\"\""
-      ",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"12423\",\"state\":\"I\",\"uid\":\"0\""
-      "},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"13382\",\"state\""
-      ":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\""
-      ":\"15196\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd --verbos"
-      "e --flagfile /etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"path\":"
-      "\"/usr/bin/sudo\",\"pid\":\"15821\",,\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\""
-      ":\"osqueryd --verbose --flagfile /etc/osquery/osquery.filesystem.flags\",\"on_di"
-      "sk\":\"1\",\"path\":\"/usr/local/bin/osqueryd\",\"pid\":\"15822\",,\"state\":\"S"
-      "\",\"uid\":\"0\"}]},\"name\":\"pack_sample_running_processes\",\"hostIdentifier\""
-      ":\"ip-172-22-1-112\",\"calendarTime\":\"Sat May 16 03:33:36 2020 UTC\",\"unixTi"
-      "me\":1589600016,\"epoch\":0,\"counter\":1,\"numerics\":false}",
-      "pack_sample_running_processes"},
+      {"{\"diffResults\":{\"removed\":[{\"cmdline\":\"\",\"on_disk\":\"-1\","
+       "\"path\":\"\""
+       ",\"pid\":\"4453\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\","
+       "\"on_disk\":"
+       "\"-1\",\"path\":\"\",\"pid\":\"7230\",\"state\":\"I\",\"uid\":\"0\"},{"
+       "\"cmdline\""
+       ":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"8497\",\"state\":"
+       "\"I\",\"uid\""
+       ":\"0\"},{\"cmdline\":\"osqueryd --verbose --flagfile "
+       "/etc/osquery/osquery.kafka."
+       "flags\",\"on_disk\":\"1\",\"path\":\"/usr/local/bin/"
+       "osqueryd\",\"pid\":\"8483\","
+       "\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose "
+       "--flagfil"
+       "e "
+       "/etc/osquery/osquery.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/usr/"
+       "bin/sudo\""
+       ",\"pid\":\"8482\",\"state\":\"S\",\"uid\":\"0\"}],\"added\":[{"
+       "\"cmdline\":\"\""
+       ",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"12423\",\"state\":\"I\","
+       "\"uid\":\"0\""
+       "},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"13382\","
+       "\"state\""
+       ":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":"
+       "\"\",\"pid\""
+       ":\"15196\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd "
+       "--verbos"
+       "e --flagfile "
+       "/etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"path\":"
+       "\"/usr/bin/"
+       "sudo\",\"pid\":\"15821\",\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\""
+       ":\"osqueryd --verbose --flagfile "
+       "/etc/osquery/osquery.filesystem.flags\",\"on_di"
+       "sk\":\"1\",\"path\":\"/usr/local/bin/"
+       "osqueryd\",\"pid\":\"15822\",\"state\":\"S"
+       "\",\"uid\":\"0\"}]},\"name\":\"pack_sample_running_processes\","
+       "\"hostIdentifier\""
+       ":\"ip-172-22-1-112\",\"calendarTime\":\"Sat May 16 03:33:36 2020 "
+       "UTC\",\"unixTi"
+       "me\":1589600016,\"epoch\":0,\"counter\":1,\"numerics\":false}",
+       "pack_sample_running_processes"},
       // batch mode result with "name" column(s)
-      {"{\"diffResults\":{\"removed\":[{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\""
-       ",\"pid\":\"4453\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\""
-       ",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"7230\",\"name\":\"\",\"state\":\"I\""
-       ",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"84"
-       "97\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"osqueryd --verb"
-       "ose --flagfile /etc/osquery/osquery.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/"
-       "usr/local/bin/osqueryd\",\"pid\":\"8483\",\"name\":\"osqueryd\",\"state\":\"S\","
-       "\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose --flagfile /etc/osquery/os"
-       "query.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/usr/bin/sudo\",\"pid\":\"8482\""
-       ",\"name\":\"osqueryd\",\"state\":\"S\",\"uid\":\"0\"}],\"added\":[{\"cmdline\":"
-       "\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"12423\",\"name\":\"\",\"state\":"
-       "\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":"
-       "\"13382\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_di"
-       "sk\":\"-1\",\"path\":\"\",\"pid\":\"15196\",\"name\":\"\",\"state\":\"I\",\"uid\""
-       ":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose --flagfile /etc/osquery/osquery."
-       "filesystem.flags\",\"on_disk\":\"1\",\"path\":\"/usr/bin/sudo\",\"pid\":\"15821\""
-       ",\"name\":\"osqueryd\",\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\":\"osqueryd -"
-       "-verbose --flagfile /etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\""
-       "path\":\"/usr/local/bin/osqueryd\",\"pid\":\"15822\",\"name\":\"osqueryd\",\"sta"
-       "te\":\"S\",\"uid\":\"0\"}]},\"name\":\"pack_sample_running_processes\",\"hostIde"
-       "ntifier\":\"ip-172-22-1-112\",\"calendarTime\":\"Sat May 16 03:33:36 2020 UTC\","
+      {"{\"diffResults\":{\"removed\":[{\"cmdline\":\"\",\"on_disk\":\"-1\","
+       "\"path\":\"\""
+       ",\"pid\":\"4453\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{"
+       "\"cmdline\":\"\""
+       ",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"7230\",\"name\":\"\","
+       "\"state\":\"I\""
+       ",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":\"\","
+       "\"pid\":\"84"
+       "97\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":"
+       "\"osqueryd --verb"
+       "ose --flagfile "
+       "/etc/osquery/osquery.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/"
+       "usr/local/bin/"
+       "osqueryd\",\"pid\":\"8483\",\"name\":\"osqueryd\",\"state\":\"S\","
+       "\"uid\":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose --flagfile "
+       "/etc/osquery/os"
+       "query.kafka.flags\",\"on_disk\":\"1\",\"path\":\"/usr/bin/"
+       "sudo\",\"pid\":\"8482\""
+       ",\"name\":\"osqueryd\",\"state\":\"S\",\"uid\":\"0\"}],\"added\":[{"
+       "\"cmdline\":"
+       "\"\",\"on_disk\":\"-1\",\"path\":\"\",\"pid\":\"12423\",\"name\":\"\","
+       "\"state\":"
+       "\"I\",\"uid\":\"0\"},{\"cmdline\":\"\",\"on_disk\":\"-1\",\"path\":"
+       "\"\",\"pid\":"
+       "\"13382\",\"name\":\"\",\"state\":\"I\",\"uid\":\"0\"},{\"cmdline\":"
+       "\"\",\"on_di"
+       "sk\":\"-1\",\"path\":\"\",\"pid\":\"15196\",\"name\":\"\",\"state\":"
+       "\"I\",\"uid\""
+       ":\"0\"},{\"cmdline\":\"sudo osqueryd --verbose --flagfile "
+       "/etc/osquery/osquery."
+       "filesystem.flags\",\"on_disk\":\"1\",\"path\":\"/usr/bin/"
+       "sudo\",\"pid\":\"15821\""
+       ",\"name\":\"osqueryd\",\"state\":\"S\",\"uid\":\"0\"},{\"cmdline\":"
+       "\"osqueryd -"
+       "-verbose --flagfile "
+       "/etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\""
+       "path\":\"/usr/local/bin/"
+       "osqueryd\",\"pid\":\"15822\",\"name\":\"osqueryd\",\"sta"
+       "te\":\"S\",\"uid\":\"0\"}]},\"name\":\"pack_sample_running_processes\","
+       "\"hostIde"
+       "ntifier\":\"ip-172-22-1-112\",\"calendarTime\":\"Sat May 16 03:33:36 "
+       "2020 UTC\","
        "\"unixTime\":1589600016,\"epoch\":0,\"counter\":1,\"numerics\":false}",
-      "pack_sample_running_processes"},
+       "pack_sample_running_processes"},
       // event mode result without "name" column
-      {"{\"name\":\"pack_sample_running_processes\",\"hostIdentifier\":\"ip-172-22-1-112"
-      "\",\"calendarTime\":\"Sat May 16 03:35:36 2020 UTC\",\"unixTime\":1589600136,\"e"
-      "poch\":0,\"counter\":2,\"numerics\":false,\"columns\":{\"cmdline\":\"osqueryd --"
-      "verbose --flagfile /etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"p"
-      "ath\":\"/usr/local/bin/osqueryd\",\"pid\":\"15822\",\"state\":\"S\",\"uid\":\"0\""
-      "},\"action\":\"removed\"}",
-      "pack_sample_running_processes"},
+      {"{\"name\":\"pack_sample_running_processes\",\"hostIdentifier\":\"ip-"
+       "172-22-1-112"
+       "\",\"calendarTime\":\"Sat May 16 03:35:36 2020 "
+       "UTC\",\"unixTime\":1589600136,\"e"
+       "poch\":0,\"counter\":2,\"numerics\":false,\"columns\":{\"cmdline\":"
+       "\"osqueryd --"
+       "verbose --flagfile "
+       "/etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"p"
+       "ath\":\"/usr/local/bin/"
+       "osqueryd\",\"pid\":\"15822\",\"state\":\"S\",\"uid\":\"0\""
+       "},\"action\":\"removed\"}",
+       "pack_sample_running_processes"},
       // event mode result with "name" column
-      {"{\"name\":\"pack_sample_running_processes\",\"hostIdentifier\":\"ip-172-22-1-112"
-       "\",\"calendarTime\":\"Sat May 16 03:35:36 2020 UTC\",\"unixTime\":1589600136,\"e"
-       "poch\":0,\"counter\":2,\"numerics\":false,\"columns\":{\"cmdline\":\"osqueryd --"
-       "verbose --flagfile /etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"p"
-       "ath\":\"/usr/local/bin/osqueryd\",\"pid\":\"16351\",\"name\":\"osqueryd\",\"stat"
+      {"{\"name\":\"pack_sample_running_processes\",\"hostIdentifier\":\"ip-"
+       "172-22-1-112"
+       "\",\"calendarTime\":\"Sat May 16 03:35:36 2020 "
+       "UTC\",\"unixTime\":1589600136,\"e"
+       "poch\":0,\"counter\":2,\"numerics\":false,\"columns\":{\"cmdline\":"
+       "\"osqueryd --"
+       "verbose --flagfile "
+       "/etc/osquery/osquery.filesystem.flags\",\"on_disk\":\"1\",\"p"
+       "ath\":\"/usr/local/bin/"
+       "osqueryd\",\"pid\":\"16351\",\"name\":\"osqueryd\",\"stat"
        "e\":\"S\",\"uid\":\"0\"},\"action\":\"added\"}",
-      "pack_sample_running_processes"}
-  };
+       "pack_sample_running_processes"}};
 
   for (const auto& test : tests) {
     EXPECT_EQ(getMsgName(test.first), test.second);

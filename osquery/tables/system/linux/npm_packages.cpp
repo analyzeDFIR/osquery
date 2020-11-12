@@ -1,19 +1,22 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <string>
 
 #include <boost/filesystem.hpp>
 
+#include <osquery/core/tables.h>
 #include <osquery/filesystem/filesystem.h>
-#include <osquery/logger.h>
-#include <osquery/tables.h>
+#include <osquery/logger/logger.h>
 #include <osquery/utils/json/json.h>
+#include <osquery/worker/ipc/platform_table_container_ipc.h>
+#include <osquery/worker/logging/glog/glog_logger.h>
 
 namespace fs = boost::filesystem;
 
@@ -24,20 +27,24 @@ const std::vector<std::string> kPackageKeys{"name", "version", "description"};
 
 const std::string kLinuxNodeModulesPath{"/usr/lib/"};
 
-void genPackageResults(const std::string& directory, QueryData& results) {
+void genPackageResults(const std::string& directory,
+                       QueryData& results,
+                       Logger& logger) {
   std::vector<std::string> packages;
   resolveFilePattern(directory + "/node_modules/%/package.json", packages);
 
   for (const auto& package_path : packages) {
     std::string json;
     if (!readFile(package_path, json).ok()) {
-      LOG(WARNING) << "Could not read package JSON: " << package_path;
+      logger.log(google::GLOG_WARNING,
+                 "Could not read package JSON: " + package_path);
       continue;
     }
 
     auto doc = JSON::newObject();
     if (!doc.fromString(json) || !doc.doc().IsObject()) {
-      LOG(WARNING) << "Could not parse JSON from: " << package_path;
+      logger.log(google::GLOG_WARNING,
+                 "Could not parse JSON from: " + package_path);
       continue;
     }
 
@@ -86,12 +93,13 @@ void genPackageResults(const std::string& directory, QueryData& results) {
 
     r["path"] = package_path;
     r["directory"] = directory;
+    r["pid_with_namespace"] = "0";
 
     results.push_back(r);
   }
 }
 
-QueryData genNPMPackages(QueryContext& context) {
+QueryData genNPMPackagesImpl(QueryContext& context, Logger& logger) {
   QueryData results;
 
   std::set<std::string> search_directories = {kLinuxNodeModulesPath};
@@ -101,10 +109,19 @@ QueryData genNPMPackages(QueryContext& context) {
   }
 
   for (const auto& directory : search_directories) {
-    genPackageResults(directory, results);
+    genPackageResults(directory, results, logger);
   }
 
   return results;
+}
+
+QueryData genNPMPackages(QueryContext& context) {
+  if (hasNamespaceConstraint(context)) {
+    return generateInNamespace(context, "npm_packages", genNPMPackagesImpl);
+  } else {
+    GLOGLogger logger;
+    return genNPMPackagesImpl(context, logger);
+  }
 }
 } // namespace tables
 } // namespace osquery

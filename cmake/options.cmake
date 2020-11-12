@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 # Detect osquery version
 # The OSQUERY_VERSION cache variable will be used if set or not empty
@@ -79,13 +80,7 @@ set(OSQUERY_CLANG_TIDY_CHECKS "-checks=cert-*,cppcoreguidelines-*,performance-*,
 # Unfortunately, due glog always enabling BUILD_TESTING, we have to force it off, so that tests won't be built
 overwrite_cache_variable("BUILD_TESTING" "BOOL" "OFF")
 
-# Linux can use source and formula modules to link dependencies; this
-# feature is not yet available on Windows and macOS
-if(DEFINED PLATFORM_LINUX)
-  set(third_party_source_list "source;formula;facebook")
-else()
-  set(third_party_source_list "source_migration;facebook")
-endif()
+set(third_party_source_list "source;formula")
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules" CACHE STRING "A list of paths containing CMake module files")
 set(OSQUERY_THIRD_PARTY_SOURCE "${third_party_source_list}" CACHE STRING "Sources used to acquire third-party dependencies")

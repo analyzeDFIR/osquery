@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-#  Copyright (c) 2014-present, Facebook, Inc.
-#  All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-#  This source code is licensed in accordance with the terms specified in
-#  the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 import argparse
-import jinja2
 import os
 import sys
 
+import templite
 
 TEMPLATE_NAME = "amalgamation.cpp.in"
 BEGIN_LINE = "/// BEGIN[GENTABLE]"
@@ -61,8 +62,7 @@ def main(argc, argv):
             if table_data is not None:
                 tables.append(table_data)
 
-    env = jinja2.Environment(keep_trailing_newline=True)
-    amalgamation = env.from_string(template_data).render(tables=tables,
+    amalgamation = templite.Templite(template_data).render(tables=tables,
         foreign=args.foreign)
     try:
         os.makedirs(os.path.dirname(args.output))

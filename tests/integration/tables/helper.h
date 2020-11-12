@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <unordered_set>
@@ -89,6 +90,10 @@ void validate_row(const Row& row, const ValidationMap& validation_map);
 void validate_rows(const std::vector<Row>& rows,
                    const ValidationMap& validation_map);
 bool validate_value_using_flags(const std::string& value, int flags);
+void validate_container_rows(
+    const std::string& table_name,
+    ValidationMap& validation_map,
+    const std::string& sql_constraints = std::string());
 bool is_valid_hex(const std::string& value);
 
 void setUpEnvironment();

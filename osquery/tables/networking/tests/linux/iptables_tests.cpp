@@ -1,16 +1,17 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <gtest/gtest.h>
 
 #include <arpa/inet.h>
 #include <osquery/core/sql/row.h>
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 extern "C" {
 #include <osquery/tables/networking/linux/iptc_proxy.h>
 }
@@ -31,6 +32,7 @@ iptcproxy_rule getIpEntryContent() {
   strcpy(ip_rule.ip_data.outiface, "eth0");
   inet_aton("123.123.123.123", &ip_rule.ip_data.src);
   inet_aton("45.45.45.45", &ip_rule.ip_data.dst);
+  ip_rule.ip_data.invflags = IPTC_INV_DSTIP;
   inet_aton("250.251.252.253", &ip_rule.ip_data.smsk);
   inet_aton("253.252.251.250", &ip_rule.ip_data.dmsk);
   memset(ip_rule.ip_data.iniface_mask, 0xfe, IFNAMSIZ);
@@ -51,7 +53,7 @@ Row getIpEntryExpectedResults() {
   row["iniface"] = "all";
   row["outiface"] = "eth0";
   row["src_ip"] = "123.123.123.123";
-  row["dst_ip"] = "45.45.45.45";
+  row["dst_ip"] = "!45.45.45.45";
   row["src_mask"] = "250.251.252.253";
   row["dst_mask"] = "253.252.251.250";
   row["iniface_mask"] = "FEFEFEFEFEFEFEFEFEFEFEFEFEFEFE";

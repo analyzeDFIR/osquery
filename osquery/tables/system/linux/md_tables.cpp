@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <errno.h>
@@ -23,9 +24,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
 
-#include <osquery/filesystem/filesystem.h>
-#include <osquery/logger.h>
 #include <osquery/events/linux/udev.h>
+#include <osquery/filesystem/filesystem.h>
+#include <osquery/logger/logger.h>
 #include <osquery/tables/system/linux/md_tables.h>
 #include <osquery/utils/conversions/split.h>
 #include <osquery/utils/conversions/tryto.h>
@@ -70,7 +71,7 @@ static inline void getLines(std::vector<std::string>& lines) {
 }
 
 /**
- * @brief function for walking thru a udev subsystem and working on devices
+ * @brief function for walking through a udev subsystem and working on devices
  *
  * @param systemName the name of the sysfs subsytem to work with
  * @param f function to execute on the subsystem; returns true if can break the
@@ -607,7 +608,7 @@ void getDrivesForArray(const std::string& arrayName,
   /* Keep track of index in QueryData that have removed slots since we can't
    * make safe assumptions about it's original slot position if disk_number >=
    * total_disk and we're unable to deteremine total number of missing slots
-   * until we walk thru all MD_SB_DISKS */
+   * until we walk through all MD_SB_DISKS */
   std::vector<size_t> removedSlots;
 
   size_t qdPos = data.size();

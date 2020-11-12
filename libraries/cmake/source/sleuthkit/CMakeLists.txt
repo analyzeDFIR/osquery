@@ -1,15 +1,11 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(sleuthkitMain)
-  if(NOT DEFINED PLATFORM_LINUX AND NOT DEFINED PLATFORM_MACOS)
-    add_osquery_library(thirdparty_sleuthkit INTERFACE)
-    return()
-  endif()
-
   set(library_root "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
   add_library(thirdparty_sleuthkit INTERFACE)
@@ -18,7 +14,6 @@ function(sleuthkitMain)
     "${library_root}/tsk/auto/auto.cpp"
     "${library_root}/tsk/auto/auto_db.cpp"
     "${library_root}/tsk/auto/case_db.cpp"
-    "${library_root}/tsk/auto/db_sqlite.cpp"
     "${library_root}/tsk/auto/guid.cpp"
     "${library_root}/tsk/auto/is_image_supported.cpp"
     "${library_root}/tsk/auto/tsk_db.cpp"
@@ -28,7 +23,6 @@ function(sleuthkitMain)
     "${library_root}/tsk/fs/walk_cpp.cpp"
     "${library_root}/tsk/fs/yaffs.cpp"
     "${library_root}/tsk/hashdb/binsrch_index.cpp"
-    "${library_root}/tsk/hashdb/sqlite_hdb.cpp"
     "${library_root}/tsk/img/img_writer.cpp"
   )
 
@@ -133,20 +127,18 @@ function(sleuthkitMain)
     _THREAD_SAFE
   )
 
-  target_compile_options(thirdparty_sleuthkit_c PRIVATE
-    -pthread
-  )
+  if(DEFINED PLATFORM_POSIX)
+    target_compile_options(thirdparty_sleuthkit_c PRIVATE
+      -pthread
+    )
 
-  target_compile_options(thirdparty_sleuthkit_cpp PRIVATE
-    -pthread
-  )
+    target_compile_options(thirdparty_sleuthkit_cpp PRIVATE
+      -pthread
+    )
+  endif()
 
   target_link_libraries(thirdparty_sleuthkit_c PUBLIC
     thirdparty_zlib
-  )
-
-  target_link_libraries(thirdparty_sleuthkit_cpp PUBLIC
-    thirdparty_sqlite
   )
 
   target_link_libraries(thirdparty_sleuthkit_c PRIVATE
@@ -157,7 +149,17 @@ function(sleuthkitMain)
     thirdparty_cxx_settings
   )
 
-  if(DEFINED PLATFORM_LINUX)
+  if(DEFINED PLATFORM_WINDOWS)
+    target_include_directories(thirdparty_sleuthkit_c PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/windows/tsk"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/windows"
+    )
+
+    target_include_directories(thirdparty_sleuthkit_cpp PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/windows/tsk"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/windows"
+    )
+  elseif(DEFINED PLATFORM_LINUX)
     target_include_directories(thirdparty_sleuthkit_c PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/config/linux/tsk"
       "${CMAKE_CURRENT_SOURCE_DIR}/config/linux"
@@ -187,7 +189,11 @@ function(sleuthkitMain)
     "${library_root}"
   )
 
-  if(DEFINED PLATFORM_LINUX)
+  if(DEFINED PLATFORM_WINDOWS)
+    target_include_directories(thirdparty_sleuthkit SYSTEM INTERFACE
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/windows"
+    )
+  elseif(DEFINED PLATFORM_LINUX)
     target_include_directories(thirdparty_sleuthkit SYSTEM INTERFACE
       "${CMAKE_CURRENT_SOURCE_DIR}/config/linux"
     )

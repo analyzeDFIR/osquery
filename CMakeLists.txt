@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 cmake_minimum_required(VERSION 3.14.6)
 
@@ -84,11 +85,6 @@ function(main)
 endfunction()
 
 function(importLibraries)
-  set(python_module_list
-    markupsafe
-    jinja2
-  )
-
   set(library_descriptor_list
     "Linux,Darwin:augeas"
     "Linux:berkeley-db"
@@ -117,23 +113,20 @@ function(importLibraries)
     "Linux,Darwin:popt"
     "Linux,Darwin,Windows:rapidjson"
     "Linux,Darwin,Windows:rocksdb"
-    "Linux,Darwin:sleuthkit"
+    "Linux,Darwin,Windows:sleuthkit"
     "Linux,Darwin:smartmontools"
     "Linux,Darwin,Windows:sqlite"
     "Linux,Darwin:ssdeep-cpp"
     "Linux,Darwin,Windows:thrift"
     "Linux:util-linux"
-    "Linux,Darwin:yara"
+    "Linux,Darwin,Windows:yara"
     "Linux,Darwin,Windows:zlib"
     "Linux,Darwin,Windows:zstd"
     "Linux,Darwin,Windows:openssl"
     "Linux,Darwin,Windows:aws-sdk-cpp"
     "Linux,Darwin,Windows:icu"
+    "Linux:ebpfpub"
   )
-
-  foreach(python_module ${python_module_list})
-    find_package("${python_module}" REQUIRED)
-  endforeach()
 
   foreach(library_descriptor ${library_descriptor_list})
     # Expand the library descriptor
@@ -151,7 +144,7 @@ function(importLibraries)
 
     find_package("${library}" REQUIRED)
 
-    # Facebook-provided libraries always come with the thirdparty_ prefix
+    # Skip libraries which already use our internal target name
     if(TARGET "thirdparty_${library}")
       continue()
 

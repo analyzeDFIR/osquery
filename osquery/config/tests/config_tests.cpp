@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #include <atomic>
@@ -21,13 +22,13 @@
 #include <osquery/filesystem/filesystem.h>
 #include <osquery/filesystem/mock_file_structure.h>
 
-#include <osquery/core.h>
-#include <osquery/database.h>
-#include <osquery/dispatcher.h>
-#include <osquery/flags.h>
-#include <osquery/packs.h>
-#include <osquery/registry.h>
-#include <osquery/system.h>
+#include <osquery/config/packs.h>
+#include <osquery/core/core.h>
+#include <osquery/core/flags.h>
+#include <osquery/core/system.h>
+#include <osquery/database/database.h>
+#include <osquery/dispatcher/dispatcher.h>
+#include <osquery/registry/registry.h>
 #include <osquery/utils/json/json.h>
 
 #include <osquery/utils/info/platform_type.h>
@@ -43,23 +44,20 @@ namespace osquery {
 DECLARE_uint64(config_refresh);
 DECLARE_uint64(config_accelerated_refresh);
 DECLARE_bool(config_enable_backup);
-DECLARE_bool(disable_database);
 
 namespace fs = boost::filesystem;
 
-// Blacklist testing methods, internal to config implementations.
-extern void restoreScheduleBlacklist(std::map<std::string, size_t>& blacklist);
-extern void saveScheduleBlacklist(
-    const std::map<std::string, size_t>& blacklist);
+// Denylist testing methods, internal to config implementations.
+extern void restoreScheduleDenylist(std::map<std::string, uint64_t>& denylist);
+extern void saveScheduleDenylist(
+    const std::map<std::string, uint64_t>& denylist);
 
 class ConfigTests : public testing::Test {
  public:
   ConfigTests() {
-    Initializer::platformSetup();
+    platformSetup();
     registryAndPluginInit();
-    FLAGS_disable_database = true;
-    DatabasePlugin::setAllowOpen(true);
-    DatabasePlugin::initPlugin();
+    initDatabasePluginForTesting();
 
     Config::get().reset();
   }
@@ -103,7 +101,7 @@ class ConfigTests : public testing::Test {
   }
 
  private:
-  size_t refresh_{0};
+  uint64_t refresh_{0};
 };
 
 class TestConfigPlugin : public ConfigPlugin {
@@ -272,32 +270,31 @@ TEST_F(ConfigTests, test_strip_comments) {
   EXPECT_TRUE(get().update({{"data", json_comments}}));
 }
 
-TEST_F(ConfigTests, test_schedule_blacklist) {
-  auto current_time = getUnixTime();
-  std::map<std::string, size_t> blacklist;
-  saveScheduleBlacklist(blacklist);
-  restoreScheduleBlacklist(blacklist);
-  EXPECT_EQ(blacklist.size(), 0U);
+TEST_F(ConfigTests, test_schedule_denylist) {
+  std::map<std::string, uint64_t> denylist;
+  saveScheduleDenylist(denylist);
+  restoreScheduleDenylist(denylist);
+  EXPECT_EQ(denylist.size(), 0U);
 
   // Create some entries.
-  blacklist["test_1"] = current_time * 2;
-  blacklist["test_2"] = current_time * 3;
-  saveScheduleBlacklist(blacklist);
-  blacklist.clear();
-  restoreScheduleBlacklist(blacklist);
-  ASSERT_EQ(blacklist.count("test_1"), 1U);
-  ASSERT_EQ(blacklist.count("test_2"), 1U);
-  EXPECT_EQ(blacklist.at("test_1"), current_time * 2);
-  EXPECT_EQ(blacklist.at("test_2"), current_time * 3);
+  denylist["test_1"] = LLONG_MAX - 2;
+  denylist["test_2"] = LLONG_MAX - 1;
+  saveScheduleDenylist(denylist);
+  denylist.clear();
+  restoreScheduleDenylist(denylist);
+  ASSERT_EQ(denylist.count("test_1"), 1U);
+  ASSERT_EQ(denylist.count("test_2"), 1U);
+  EXPECT_EQ(denylist.at("test_1"), LLONG_MAX - 2);
+  EXPECT_EQ(denylist.at("test_2"), LLONG_MAX - 1);
 
   // Now save an expired query.
-  blacklist["test_1"] = 1;
-  saveScheduleBlacklist(blacklist);
-  blacklist.clear();
+  denylist["test_1"] = 1;
+  saveScheduleDenylist(denylist);
+  denylist.clear();
 
   // When restoring, the values below the current time will not be included.
-  restoreScheduleBlacklist(blacklist);
-  EXPECT_EQ(blacklist.size(), 1U);
+  restoreScheduleDenylist(denylist);
+  EXPECT_EQ(denylist.size(), 1U);
 }
 
 TEST_F(ConfigTests, test_pack_noninline) {
@@ -407,14 +404,14 @@ TEST_F(ConfigTests, test_get_scheduled_queries) {
       << ") should equal " << expected_size;
   ASSERT_FALSE(query_names.empty());
 
-  // Construct a schedule blacklist and place the first scheduled query.
-  std::map<std::string, size_t> blacklist;
+  // Construct a schedule denylist and place the first scheduled query.
+  std::map<std::string, uint64_t> denylist;
   std::string query_name = query_names[0];
-  blacklist[query_name] = getUnixTime() * 2;
-  saveScheduleBlacklist(blacklist);
-  blacklist.clear();
+  denylist[query_name] = getUnixTime() * 2;
+  saveScheduleDenylist(denylist);
+  denylist.clear();
 
-  // When the blacklist is edited externally, the config must re-read.
+  // When the denylist is edited externally, the config must re-read.
   get().reset();
   get().addPack("unrestricted_pack", "", getUnrestrictedPack().doc());
 
@@ -430,42 +427,42 @@ TEST_F(ConfigTests, test_get_scheduled_queries) {
 
   // Try again, this time requesting scheduled queries.
   query_names.clear();
-  bool blacklisted = false;
-  get().scheduledQueries(([&blacklisted, &query_names, &query_name](
+  bool denylisted = false;
+  get().scheduledQueries(([&denylisted, &query_names, &query_name](
                               std::string name, const ScheduledQuery& query) {
                            if (name == query_name) {
-                             // Only populate the query we've blacklisted.
+                             // Only populate the query we've denylisted.
                              query_names.push_back(std::move(name));
-                             blacklisted = query.blacklisted;
+                             denylisted = query.denylisted;
                            }
                          }),
                          true);
   ASSERT_EQ(query_names.size(), std::size_t{1});
   EXPECT_EQ(query_names[0], query_name);
-  EXPECT_TRUE(blacklisted);
+  EXPECT_TRUE(denylisted);
 }
 
-TEST_F(ConfigTests, test_nonblacklist_query) {
-  std::map<std::string, size_t> blacklist;
+TEST_F(ConfigTests, test_nondenylist_query) {
+  std::map<std::string, uint64_t> denylist;
 
-  const std::string kConfigTestNonBlacklistQuery{
+  const std::string kConfigTestNonDenylistQuery{
       "pack_unrestricted_pack_process_heartbeat"};
 
-  blacklist[kConfigTestNonBlacklistQuery] = getUnixTime() * 2;
-  saveScheduleBlacklist(blacklist);
+  denylist[kConfigTestNonDenylistQuery] = getUnixTime() * 2;
+  saveScheduleDenylist(denylist);
 
   get().reset();
   get().addPack("unrestricted_pack", "", getUnrestrictedPack().doc());
 
-  std::map<std::string, bool> blacklisted;
+  std::map<std::string, bool> denylisted;
   get().scheduledQueries(
-      ([&blacklisted](std::string name, const ScheduledQuery& query) {
-        blacklisted[name] = query.blacklisted;
+      ([&denylisted](std::string name, const ScheduledQuery& query) {
+        denylisted[name] = query.denylisted;
       }));
 
-  // This query cannot be blacklisted.
-  auto query = blacklisted.find(kConfigTestNonBlacklistQuery);
-  ASSERT_NE(query, blacklisted.end());
+  // This query cannot be denylisted.
+  auto query = denylisted.find(kConfigTestNonDenylistQuery);
+  ASSERT_NE(query, denylisted.end());
   EXPECT_FALSE(query->second);
 }
 

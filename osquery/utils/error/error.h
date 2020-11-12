@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2018-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #pragma once
@@ -64,7 +65,7 @@ class Error final : public ErrorBase {
     return *underlyingError_;
   }
 
-  std::unique_ptr<ErrorBase> takeUnderlyingError() const {
+  std::unique_ptr<ErrorBase> takeUnderlyingError() {
     return std::move(underlyingError_);
   }
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-#  Copyright (c) 2014-present, Facebook, Inc.
-#  All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-#  This source code is licensed in accordance with the terms specified in
-#  the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 import argparse
 import ast
@@ -178,19 +179,19 @@ def gen_diff(api_old_path, api_new_path):
 
 
 def gen_api(tables_path, profile={}):
-    blacklist = None
-    blacklist_path = os.path.join(tables_path, "blacklist")
-    if os.path.exists(blacklist_path):
-        with open(blacklist_path, "r") as fh:
-            blacklist = fh.read()
+    denylist = None
+    denylist_path = os.path.join(tables_path, "denylist")
+    if os.path.exists(denylist_path):
+        with open(denylist_path, "r") as fh:
+            denylist = fh.read()
 
     categories = {}
     for base, _, files in os.walk(tables_path):
         for spec_file in files:
             if spec_file[0] == '.' or spec_file.find("example") == 0:
                 continue
-            # Exclude blacklist specific file
-            if spec_file == 'blacklist' or spec_file == 'CMakeLists.txt':
+            # Exclude denylist specific file
+            if spec_file == 'denylist' or spec_file == 'CMakeLists.txt':
                 continue
             platform = os.path.basename(base)
             # Exclude kernel tables
@@ -205,8 +206,8 @@ def gen_api(tables_path, profile={}):
                 table_spec = gen_spec(tree)
                 table_profile = profile.get("%s.%s" % (platform, name), {})
                 table_spec["profile"] = NoIndent(table_profile)
-                table_spec["blacklisted"] = is_blacklisted(table_spec["name"], path=spec_file,
-                                                           blacklist=blacklist)
+                table_spec["denylisted"] = is_denylisted(table_spec["name"], path=spec_file,
+                                                           denylist=denylist)
                 categories[platform]["tables"].append(table_spec)
     categories = [{"key": k, "name": v["name"], "tables": v["tables"]}
                   for k, v in categories.items()]
@@ -270,7 +271,7 @@ def main(argc, argv):
                 logging.error("Cannot parse profile data: %s" % (str(e)))
                 exit(2)
 
-    # Read in the optional list of blacklisted tables, then generate
+    # Read in the optional list of denylisted tables, then generate
     # categories.
     api = gen_api(args.tables, profile)
 

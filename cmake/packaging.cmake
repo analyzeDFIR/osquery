@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 set(linux_supported_packaging_systems
   DEB
@@ -11,9 +12,8 @@ set(linux_supported_packaging_systems
 )
 
 set(windows_supported_packaging_system
-  # NSIS
-  # NSIS64
   WIX
+  NuGet
 )
 
 set(macos_supported_packaging_system
@@ -116,6 +116,22 @@ function(findPackagingTool)
         "Could not find the WIX packaging tools, either install it or if it's already installed, please set the WIX_ROOT_FOLDER_PATH variable to the root folder of the WIX installation."
       )
     endif()
+  elseif(PACKAGING_SYSTEM STREQUAL "NuGet")
+    find_program(nuget_exec NAMES nuget.exe PATHS "${NUGET_ROOT_FOLDER_PATH}\\bin" "$ENV{NUGET}\\bin")
+
+    if(NOT "${nuget_exec}" STREQUAL "nuget_exec-NOTFOUND")
+      get_filename_component(nuget_root_path "${nuget_exec}" DIRECTORY)
+      get_filename_component(nuget_root_path "${nuget_root_path}" DIRECTORY)
+      message(STATUS "Found NuGet toolset at: ${nuget_root_path}")
+      set(CPACK_NUGET_ROOT "${nuget_root_path}")
+      overwrite_cache_variable("NUGET_ROOT_FOLDER_PATH" "STRING" "${nuget_root_path}")
+    else()
+      message(WARNING
+        "Could not find the NuGet packaging tools, either install it or if it's 
+        already installed, please set the NUGET_ROOT_FOLDER_PATH variable to the 
+        root folder of the NuGet installation."
+      )
+    endif()
   endif()
 endfunction()
 
@@ -197,20 +213,38 @@ function(generateInstallTargets)
     # .
     install(PROGRAMS "$<TARGET_FILE:osqueryd>" DESTINATION . RENAME osqueryi.exe)
 
-    file(COPY "${CMAKE_SOURCE_DIR}/tools/deployment/osquery.example.conf" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    install(FILES "${CMAKE_BINARY_DIR}/package/wix/osquery.example.conf" DESTINATION . RENAME osquery.conf)
+    if("${PACKAGING_SYSTEM}" STREQUAL "NuGet")
+      set(win_packager "nuget")
+      # Grab the Chocolatey management scripts
+      file(COPY "${CMAKE_SOURCE_DIR}/tools/deployment/chocolatey/tools" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+      install(DIRECTORY "${CMAKE_BINARY_DIR}/package/${win_packager}/tools" DESTINATION .)
 
-    file(COPY "${CMAKE_SOURCE_DIR}/tools/wel/osquery.man" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    install(FILES "${CMAKE_BINARY_DIR}/package/wix/osquery.man" DESTINATION .)
+      # Chocolatey requires a LICENSE.txt and VERIFICATION.txt file in all 
+      # packages containing .exe, .msi, or .zip files.
+      file(COPY "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+      install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/LICENSE" DESTINATION . RENAME LICENSE.txt)
+      
+      file(COPY "${CMAKE_SOURCE_DIR}/tools/deployment/VERIFICATION.txt" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+      install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/VERIFICATION.txt" DESTINATION .)
+    else()
+      set(win_packager "wix")
+    endif()
+    
 
-    file(COPY "${CMAKE_SOURCE_DIR}/tools/manage-osqueryd.ps1" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    install(FILES "${CMAKE_BINARY_DIR}/package/wix/manage-osqueryd.ps1" DESTINATION .)
+    file(COPY "${CMAKE_SOURCE_DIR}/tools/deployment/osquery.example.conf" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+    install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/osquery.example.conf" DESTINATION . RENAME osquery.conf)
 
-    file(COPY "${CMAKE_SOURCE_DIR}/tools/provision/chocolatey/osquery_utils.ps1" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    install(FILES "${CMAKE_BINARY_DIR}/package/wix/osquery_utils.ps1" DESTINATION .)
+    file(COPY "${CMAKE_SOURCE_DIR}/tools/wel/osquery.man" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+    install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/osquery.man" DESTINATION .)
 
-    file(WRITE "${CMAKE_BINARY_DIR}/package/wix/osquery.flags")
-    install(FILES "${CMAKE_BINARY_DIR}/package/wix/osquery.flags" DESTINATION .)
+    file(COPY "${CMAKE_SOURCE_DIR}/tools/manage-osqueryd.ps1" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+    install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/manage-osqueryd.ps1" DESTINATION .)
+
+    file(COPY "${CMAKE_SOURCE_DIR}/tools/deployment/chocolatey/tools/osquery_utils.ps1" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+    install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/osquery_utils.ps1" DESTINATION .)
+
+    file(WRITE "${CMAKE_BINARY_DIR}/package/${win_packager}/osquery.flags")
+    install(FILES "${CMAKE_BINARY_DIR}/package/${win_packager}/osquery.flags" DESTINATION .)
 
     # osqueryd
     install(TARGETS osqueryd DESTINATION osqueryd)
@@ -219,8 +253,8 @@ function(generateInstallTargets)
     install(DIRECTORY DESTINATION log)
 
     # packs
-    file(COPY "${CMAKE_SOURCE_DIR}/packs" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    install(DIRECTORY "${CMAKE_BINARY_DIR}/package/wix/packs" DESTINATION .)
+    file(COPY "${CMAKE_SOURCE_DIR}/packs" DESTINATION "${CMAKE_BINARY_DIR}/package/${win_packager}")
+    install(DIRECTORY "${CMAKE_BINARY_DIR}/package/${win_packager}/packs" DESTINATION .)
 
     # certs
     install(FILES "${CMAKE_SOURCE_DIR}/tools/deployment/certs.pem" DESTINATION certs)
@@ -298,13 +332,13 @@ function(generatePackageTarget)
   if(DEFINED PLATFORM_LINUX)
     set(OSQUERY_PACKAGE_RELEASE "1.linux")
     if(CPACK_GENERATOR STREQUAL "TGZ")
-      set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}_${OSQUERY_PACKAGE_RELEASE}_x86_64")
+      set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}_${OSQUERY_PACKAGE_RELEASE}_${TARGET_PROCESSOR}")
       set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY 0)
       set(CPACK_SET_DESTDIR ON)
     elseif(CPACK_GENERATOR STREQUAL "DEB")
       set(CPACK_DEBIAN_OSQUERY_PACKAGE_NAME ${CPACK_PACKAGE_NAME})
       set(CPACK_DEBIAN_PACKAGE_RELEASE "${OSQUERY_PACKAGE_RELEASE}")
-      set(CPACK_DEBIAN_OSQUERY_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}_${OSQUERY_PACKAGE_RELEASE}.amd64.deb")
+      set(CPACK_DEBIAN_OSQUERY_FILE_NAME "DEB-DEFAULT")
       set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
       set(CPACK_DEBIAN_PACKAGE_SECTION "default")
       set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>=2.12), zlib1g")
@@ -314,7 +348,7 @@ function(generatePackageTarget)
       set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/package/linux/conffiles;${CMAKE_BINARY_DIR}/package/linux/postinst")
     elseif(CPACK_GENERATOR STREQUAL "RPM")
       set(CPACK_RPM_PACKAGE_RELEASE_DIST "${OSQUERY_PACKAGE_RELEASE}")
-      set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${OSQUERY_PACKAGE_RELEASE}.x86_64")
+      set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
       set(CPACK_RPM_PACKAGE_DESCRIPTION "osquery is an operating system instrumentation toolchain.")
       set(CPACK_RPM_PACKAGE_GROUP "default")
       set(CPACK_RPM_PACKAGE_LICENSE "Apache 2.0 or GPL 2.0")
@@ -329,6 +363,7 @@ function(generatePackageTarget)
       )
       set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
       set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX /usr/src/debug/osquery)
+      set(CPACK_RPM_DEBUGINFO_FILE_NAME "RPM-DEFAULT")
     endif()
   elseif(DEFINED PLATFORM_MACOS)
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
@@ -336,14 +371,46 @@ function(generatePackageTarget)
     set(CPACK_COMMAND_PKGBUILD "${CMAKE_SOURCE_DIR}/tools/deployment/productbuild.sh")
     set(CPACK_SET_DESTDIR ON)
   elseif(DEFINED PLATFORM_WINDOWS)
-    file(COPY "${CMAKE_SOURCE_DIR}/tools/osquery.ico" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    file(COPY "${CMAKE_SOURCE_DIR}/cmake/wix_patches/osquery_wix_patch.xml" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
-    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
-    set(CPACK_WIX_PRODUCT_ICON "${CMAKE_BINARY_DIR}/package/wix/osquery.ico")
-    set(CPACK_WIX_UPGRADE_GUID "ea6c7327-461e-4033-847c-acdf2b85dede")
-    set(CPACK_WIX_PATCH_FILE "${CMAKE_BINARY_DIR}/package/wix/osquery_wix_patch.xml")
-    set(CPACK_PACKAGE_INSTALL_DIRECTORY "osquery")
-    set(CPACK_WIX_EXTENSIONS "WixUtilExtension")
+    if(CPACK_GENERATOR STREQUAL "WIX")
+      file(COPY "${CMAKE_SOURCE_DIR}/tools/osquery.ico" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
+      file(COPY "${CMAKE_SOURCE_DIR}/cmake/wix_patches/osquery_wix_patch.xml" DESTINATION "${CMAKE_BINARY_DIR}/package/wix")
+      set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
+      set(CPACK_WIX_PRODUCT_ICON "${CMAKE_BINARY_DIR}/package/wix/osquery.ico")
+      set(CPACK_WIX_UPGRADE_GUID "ea6c7327-461e-4033-847c-acdf2b85dede")
+      set(CPACK_WIX_PATCH_FILE "${CMAKE_BINARY_DIR}/package/wix/osquery_wix_patch.xml")
+      set(CPACK_PACKAGE_INSTALL_DIRECTORY "osquery")
+      set(CPACK_WIX_EXTENSIONS "WixUtilExtension")
+    elseif(CPACK_GENERATOR STREQUAL "NuGet")
+      set(CPACK_NUGET_PACKAGE_DESCRIPTION "
+        osquery allows you to easily ask questions about your Linux, macOS, and
+        Windows infrastructure. Whether your goal is intrusion detection, 
+        infrastructure reliability, or compliance, osquery gives you the ability
+        to empower and inform a broad set of organizations within your company.
+        
+        ### Package Parameters
+          * `/InstallService` - This creates a new windows service that will 
+                                auto-start the daemon.
+                                
+        These parameters can be passed to the installer with the use of 
+        `--params`. For example: `--params='/InstallService'`.
+        "
+      )
+      set(OSQUERY_REPO "https://github.com/osquery/osquery/")
+      set(CPACK_NUGET_PACKAGE_AUTHORS "${CPACK_PACKAGE_NAME}")
+      set(CPACK_NUGET_PACKAGE_TITLE "${CPACK_PACKAGE_NAME}")
+      set(CPACK_NUGET_PACKAGE_OWNERS "${CPACK_PACKAGE_NAME}")
+      set(CPACK_NUGET_PACKAGE_COPYRIGHT "Copyright (c) 2014-present, The osquery authors. See LICENSE.")
+      set(CPACK_NUGET_PACKAGE_LICENSEURL "${OSQUERY_REPO}blob/master/LICENSE")
+      set(CPACK_NUGET_PACKAGE_ICONURL "${OSQUERY_REPO}blob/master/tools/osquery.ico")
+      set(CPACK_NUGET_PACKAGE_DESCRIPTION_SUMMARY "
+        osquery gives you the ability to query and log things like running 
+        processes, logged in users, password changes, usb devices, firewall 
+        exceptions, listening ports, and more.
+        "
+      )
+      set(CPACK_NUGET_PACKAGE_RELEASE_NOTES "${OSQUERY_REPO}releases/tag/${CPACK_PACKAGE_VERSION}")
+      set(CPACK_NUGET_PACKAGE_TAGS "infosec tools security")
+    endif()
   elseif(DEFINED PLATFORM_FREEBSD)
   else()
     message(FATAL_ERROR "Unsupported platform")

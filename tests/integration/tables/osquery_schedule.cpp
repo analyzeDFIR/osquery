@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // Sanity check integration test for osquery_schedule
@@ -15,10 +16,10 @@ namespace osquery {
 namespace table_tests {
 
 class osquerySchedule : public testing::Test {
-  protected:
-    void SetUp() override {
-      setUpEnvironment();
-    }
+ protected:
+  void SetUp() override {
+    setUpEnvironment();
+  }
 };
 
 TEST_F(osquerySchedule, test_sanity) {
@@ -37,7 +38,7 @@ TEST_F(osquerySchedule, test_sanity) {
   //      {"interval", IntType}
   //      {"executions", IntType}
   //      {"last_executed", IntType}
-  //      {"blacklisted", IntType}
+  //      {"denylisted", IntType}
   //      {"output_size", IntType}
   //      {"wall_time", IntType}
   //      {"user_time", IntType}

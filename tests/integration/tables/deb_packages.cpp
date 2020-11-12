@@ -1,17 +1,18 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // Sanity check integration test for deb_packages
 // Spec file: specs/linux/deb_packages.table
 
+#include <osquery/logger/logger.h>
 #include <osquery/tests/integration/tables/helper.h>
-
-#include <osquery/logger.h>
+#include <osquery/utils/info/platform_type.h>
 
 namespace osquery {
 namespace table_tests {
@@ -32,7 +33,11 @@ TEST_F(DebPackages, test_sanity) {
                              {"size", IntType},
                              {"arch", NonEmptyString},
                              {"revision", NormalType},
-                             {"status", NonEmptyString}};
+                             {"status", NonEmptyString},
+                             {"maintainer", NonEmptyString},
+                             {"section", NonEmptyString},
+                             {"priority", NonEmptyString}};
+
     validate_rows(rows, row_map);
 
     auto all_packages = std::unordered_set<std::string>{};
@@ -45,6 +50,10 @@ TEST_F(DebPackages, test_sanity) {
     }
 
     ASSERT_EQ(all_packages.count("dpkg"), 1u);
+
+    if (isPlatform(PlatformType::TYPE_LINUX)) {
+      validate_container_rows("deb_packages", row_map);
+    }
 
   } else {
     LOG(WARNING) << "Empty results of query from 'deb_packages', assume there "

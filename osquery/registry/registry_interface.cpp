@@ -1,14 +1,15 @@
 /**
- *  Copyright (c) 2018-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
-#include <osquery/extensions.h>
-#include <osquery/registry_factory.h>
-#include <osquery/registry_interface.h>
+#include <osquery/extensions/extensions.h>
+#include <osquery/registry/registry_factory.h>
+#include <osquery/registry/registry_interface.h>
 #include <osquery/utils/conversions/split.h>
 
 namespace osquery {
@@ -39,7 +40,7 @@ void RegistryInterface::remove(const std::string& item_name) {
 bool RegistryInterface::isInternal(const std::string& item_name) const {
   ReadLock lock(mutex_);
 
-  return isInternal_(item_name);
+  return isInternalUnsafe(item_name);
 }
 
 std::map<std::string, RouteUUID> RegistryInterface::getExternal() const {
@@ -84,9 +85,10 @@ Status RegistryInterface::setActive(const std::string& item_name) {
 
   // The active plugin is setup when initialized.
   for (const auto& item : osquery::split(item_name, ",")) {
-    if (exists_(item, true)) {
+    if (existsUnsafe(item, true)) {
       status = RegistryFactory::get().plugin(name_, item)->setUp();
-    } else if (exists_(item, false) && !RegistryFactory::get().external()) {
+    } else if (existsUnsafe(item, false) &&
+               !RegistryFactory::get().external()) {
       // If the active plugin is within an extension we must wait.
       // An extension will first broadcast the registry, then receive the list
       // of active plugins, active them if they are extension-local, and finally
@@ -106,7 +108,7 @@ RegistryRoutes RegistryInterface::getRoutes() const {
 
   RegistryRoutes route_table;
   for (const auto& item : items_) {
-    if (isInternal_(item.first)) {
+    if (isInternalUnsafe(item.first)) {
       // This is an internal plugin, do not include the route.
       continue;
     }
@@ -217,7 +219,7 @@ void RegistryInterface::setUp() {
 
   // If the registry is using a single 'active' plugin, setUp that plugin.
   // For config and logger, only setUp the selected plugin.
-  if (active_.size() != 0 && exists_(active_, true)) {
+  if (active_.size() != 0 && existsUnsafe(active_, true)) {
     items_.at(active_)->setUp();
     return;
   }
@@ -242,7 +244,7 @@ void RegistryInterface::setUp() {
 void RegistryInterface::configure() {
   ReadLock lock(mutex_);
 
-  if (!active_.empty() && exists_(active_, true)) {
+  if (!active_.empty() && existsUnsafe(active_, true)) {
     items_.at(active_)->configure();
   } else {
     for (auto& item : items_) {
@@ -276,24 +278,29 @@ Status RegistryInterface::addExternal(const RouteUUID& uuid,
 
 /// Remove all the routes for a given uuid.
 void RegistryInterface::removeExternal(const RouteUUID& uuid) {
-  WriteLock lock(mutex_);
   std::vector<std::string> removed_items;
 
   // Create list of items to remove by filtering uuid
-  for (const auto& item : external_) {
-    if (item.second == uuid) {
-      removed_items.push_back(item.first);
+  {
+    ReadLock lock(mutex_);
+    for (const auto& item : external_) {
+      if (item.second == uuid) {
+        removed_items.push_back(item.first);
+      }
+    }
+
+    for (const auto& item : removed_items) {
+      removeExternalPlugin(item);
     }
   }
 
-  for (const auto& item : removed_items) {
-    removeExternalPlugin(item);
-  }
-
   // Remove items belonging to the external uuid.
-  for (const auto& item : removed_items) {
-    external_.erase(item);
-    routes_.erase(item);
+  {
+    WriteLock lock(mutex_);
+    for (const auto& item : removed_items) {
+      external_.erase(item);
+      routes_.erase(item);
+    }
   }
 }
 
@@ -301,7 +308,7 @@ void RegistryInterface::removeExternal(const RouteUUID& uuid) {
 bool RegistryInterface::exists(const std::string& item_name, bool local) const {
   ReadLock lock(mutex_);
 
-  return exists_(item_name, local);
+  return existsUnsafe(item_name, local);
 }
 
 /// Facility method to list the registry item identifiers.
@@ -332,9 +339,7 @@ void RegistryInterface::setname(const std::string& name) {
   name_ = name;
 }
 
-bool RegistryInterface::isInternal_(const std::string& item_name) const {
-  ReadLock lock(mutex_);
-
+bool RegistryInterface::isInternalUnsafe(const std::string& item_name) const {
   if (std::find(internal_.begin(), internal_.end(), item_name) ==
       internal_.end()) {
     return false;
@@ -342,10 +347,8 @@ bool RegistryInterface::isInternal_(const std::string& item_name) const {
   return true;
 }
 
-bool RegistryInterface::exists_(const std::string& item_name,
-                                bool local) const {
-  ReadLock lock(mutex_);
-
+bool RegistryInterface::existsUnsafe(const std::string& item_name,
+                                     bool local) const {
   bool has_local = (items_.count(item_name) > 0);
   bool has_external = (external_.count(item_name) > 0);
   bool has_route = (routes_.count(item_name) > 0);

@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #pragma once
@@ -13,9 +14,9 @@
 #include <memory>
 #include <vector>
 
+#include <osquery/core/plugins/plugin.h>
+#include <osquery/core/query.h>
 #include <osquery/core/sql/query_performance.h>
-#include <osquery/plugins/plugin.h>
-#include <osquery/query.h>
 #include <osquery/utils/expected/expected.h>
 #include <osquery/utils/json/json.h>
 
@@ -90,7 +91,7 @@ class Config : private boost::noncopyable {
    * @param r1 the process row after the query
    */
   void recordQueryPerformance(const std::string& name,
-                              size_t delay,
+                              uint64_t delay,
                               const Row& r0,
                               const Row& r1);
 
@@ -131,12 +132,6 @@ class Config : private boost::noncopyable {
     return valid_;
   }
 
-  /// Get start time of config.
-  static size_t getStartTime();
-
-  /// Set the start time if the config.
-  static void setStartTime(size_t st);
-
   /**
    * @brief Add a pack to the osquery schedule
    */
@@ -175,7 +170,7 @@ class Config : private boost::noncopyable {
    * the query and the ScheduledQuery struct of the queries data. predicate
    * will be called on each currently scheduled query.
    *
-   * @param blacklisted [optional] return blacklisted queries if true.
+   * @param denylisted [optional] return denylisted queries if true.
    *
    * @code{.cpp}
    *   std::map<std::string, ScheduledQuery> queries;
@@ -188,7 +183,7 @@ class Config : private boost::noncopyable {
   void scheduledQueries(
       std::function<void(std::string name, const ScheduledQuery& query)>
           predicate,
-      bool blacklisted = false) const;
+      bool denylisted = false) const;
 
   /**
    * @brief Map a function across the set of configured files
@@ -262,10 +257,10 @@ class Config : private boost::noncopyable {
   Status refresh();
 
   /// Update the refresh rate.
-  void setRefresh(size_t refresh_sec);
+  void setRefresh(uint64_t refresh_sec);
 
   /// Inspect the refresh rate.
-  size_t getRefresh() const;
+  uint64_t getRefresh() const;
 
   /**
    * @brief Check if a config plugin is registered and load configs.
@@ -304,7 +299,7 @@ class Config : private boost::noncopyable {
    * associated value is passed to the parser.
    *
    * Use this utility method for both the top-level configuration JSON and
-   * the content of each configuration pack. There is an optional black list
+   * the content of each configuration pack. There is an optional denylist
    * parameter to differentiate pack content.
    *
    * @param source The input configuration source name.
@@ -378,7 +373,7 @@ class Config : private boost::noncopyable {
   FRIEND_TEST(ConfigTests, test_config_backup_integrate);
   FRIEND_TEST(ConfigTests, test_config_refresh);
   FRIEND_TEST(ConfigTests, test_get_scheduled_queries);
-  FRIEND_TEST(ConfigTests, test_nonblacklist_query);
+  FRIEND_TEST(ConfigTests, test_nondenylist_query);
   FRIEND_TEST(OptionsConfigParserPluginTests, test_get_option);
   FRIEND_TEST(OptionsConfigParserPluginTests, test_get_option_first);
   FRIEND_TEST(ViewsConfigParserPluginTests, test_add_view);

@@ -1,14 +1,15 @@
-#  Copyright (c) 2014-present, Facebook, Inc.
-#  All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-#  This source code is licensed in accordance with the terms specified in
-#  the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 # This library file contains constant definitions and helper functions
 
 #Requires -Version 3.0
 
-. "$PSScriptRoot\\osquery_utils.ps1"
+. (Join-Path "$PSScriptRoot" "osquery_utils.ps1")
 
 # Remove the osquery path from the System PATH variable. Note: Here
 # we don't make use of our local vars, as Regex requires escaping the '\'

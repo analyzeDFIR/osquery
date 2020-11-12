@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 #pragma once
@@ -19,7 +20,7 @@ namespace caches {
  *
  * This cache discards the least recently used items (items at the end of the
  * queue) first. Insert and every access to the element push it up to the
- * begining of the queue.
+ * beginning of the queue.
  */
 template <typename KeyType_, typename ValueType_>
 class LRU {
@@ -57,7 +58,7 @@ class LRU {
   /**
    * @brief Get value from cache by key if it is in the cache.
    *
-   * @details The successful access will push the element up to the begining of
+   * @details The successful access will push the element up to the beginning of
    * the queue.
    *
    * @param KeyType key of the element to search for

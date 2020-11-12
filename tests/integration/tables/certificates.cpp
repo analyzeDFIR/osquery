@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // Sanity check integration test for certificates
@@ -56,6 +57,15 @@ TEST_F(certificates, test_sanity) {
   }
 
   validate_rows(data, row_map);
+}
+
+TEST_F(certificates, test_certificate_common_name) {
+  const auto data =
+      execute_query("SELECT common_name FROM certificates LIMIT 1");
+  ASSERT_GE(data.size(), 1uL);
+  std::map<std::string, std::string> row = data[0];
+  const std::string value = row["common_name"];
+  ASSERT_FALSE(value.empty());
 }
 
 } // namespace table_tests

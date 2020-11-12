@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // clang-format off
@@ -12,20 +13,19 @@
 #include <osquery/remote/utility.h>
 // clang-format on
 
-#include <boost/algorithm/string.hpp>
-
 #include <osquery/carver/carver.h>
-#include <osquery/database.h>
-#include <osquery/distributed.h>
+#include <osquery/carver/carver_utils.h>
+#include <osquery/database/database.h>
+#include <osquery/distributed/distributed.h>
 #include <osquery/filesystem/fileops.h>
-#include <osquery/flags.h>
+#include <osquery/core/flags.h>
 #include <osquery/hashing/hashing.h>
-#include <osquery/logger.h>
+#include <osquery/logger/logger.h>
 #include <osquery/remote/serializers/json.h>
-#include <osquery/system.h>
+#include <osquery/utils/conversions/split.h>
+#include <osquery/core/system.h>
 #include <osquery/utils/base64.h>
 #include <osquery/utils/json/json.h>
-
 #include <osquery/utils/system/system.h>
 #include <osquery/utils/system/time.h>
 
@@ -54,81 +54,103 @@ CLI_FLAG(uint32,
          8192,
          "Size of blocks used for POSTing data back to remote endpoints");
 
-CLI_FLAG(bool,
-         disable_carver,
-         true,
-         "Disable the osquery file carver (default true)");
-
-CLI_FLAG(bool,
-         carver_disable_function,
-         FLAGS_disable_carver,
-         "Disable the osquery file carver function (default true)");
-
+/// Boolean if compression should be used.
 CLI_FLAG(bool,
          carver_compression,
          false,
          "Compress archives using zstd prior to upload (default false)");
 
+/// Time to expire successful carves from the local cache.
+CLI_FLAG(uint32,
+         carver_expiry,
+         86400,
+         "Seconds to store successful carve result metadata (in carves table)");
+
+DECLARE_bool(disable_carver);
 DECLARE_uint64(read_max);
 
-/// Helper function to update values related to a carve
-void updateCarveValue(const std::string& guid,
-                      const std::string& key,
-                      const std::string& value) {
-  std::string carve;
-  auto s = getDatabaseValue(kCarveDbDomain, kCarverDBPrefix + guid, carve);
-  if (!s.ok()) {
-    VLOG(1) << "Failed to update status of carve in database " << guid;
-    return;
+std::atomic<bool> CarverRunnable::running_{false};
+
+void CarverRunnable::start() {
+  std::vector<std::string> carves;
+  scanDatabaseKeys(kCarves, carves, kCarverDBPrefix);
+
+  for (const auto& key : carves) {
+    std::string carve;
+    auto s = getDatabaseValue(kCarves, key, carve);
+    if (!s.ok()) {
+      VLOG(1) << "Failed to retrieve carve key: " << key;
+      deleteDatabaseValue(kCarves, key);
+      continue;
+    }
+
+    JSON tree;
+    s = tree.fromString(carve);
+    if (!s.ok() || !tree.doc().IsObject()) {
+      deleteDatabaseValue(kCarves, key);
+      VLOG(1) << "Failed to parse carve entries: " << s.getMessage();
+      continue;
+    }
+
+    auto& doc = tree.doc();
+    if (!doc.HasMember("status") || !doc["status"].IsString()) {
+      // Malformed data.
+      deleteDatabaseValue(kCarves, key);
+      continue;
+    }
+
+    std::string guid(doc["carve_guid"].GetString());
+    std::string status(doc["status"].GetString());
+    if (status == kCarverStatusSuccess) {
+      uint64_t start_time(doc["time"].GetUint());
+      auto delta = getUnixTime() - start_time;
+      if (delta > FLAGS_carver_expiry) {
+        VLOG(1) << "Expiring successful carve metadata for GUID: " << guid;
+        deleteDatabaseValue(kCarves, key);
+        continue;
+      }
+    }
+
+    if (status != kCarverStatusScheduled) {
+      continue;
+    }
+
+    // Schedule the carve.
+    updateCarveValue(guid, "status", "STARTING");
+    std::set<std::string> paths;
+    for (const auto& path : osquery::split(doc["path"].GetString(), ",")) {
+      paths.insert(path);
+    }
+
+    auto requestId = Distributed::getCurrentRequestId();
+    doCarve(paths, guid, requestId);
   }
 
-  JSON tree;
-  s = tree.fromString(carve);
-  if (!s.ok()) {
-    VLOG(1) << "Failed to parse carve entries: " << s.what();
-    return;
-  }
-
-  tree.add(key, value);
-
-  std::string out;
-  s = tree.toString(out);
-  if (!s.ok()) {
-    VLOG(1) << "Failed to serialize carve entries: " << s.what();
-  }
-
-  s = setDatabaseValue(kCarveDbDomain, kCarverDBPrefix + guid, out);
-  if (!s.ok()) {
-    VLOG(1) << "Failed to update status of carve in database " << guid;
-  }
+  // All pending carves have been started.
+  kCarverPendingCarves = false;
 }
 
 Carver::Carver(const std::set<std::string>& paths,
                const std::string& guid,
-               const std::string& requestId)
-    : InternalRunnable("Carver") {
-  status_ = Status(0, "Ok");
+               const std::string& requestId) {
   for (const auto& p : paths) {
     carvePaths_.insert(fs::path(p));
   }
-
-  // Construct the uri we post our data back to:
-  startUri_ = TLSRequestHelper::makeURI(FLAGS_carver_start_endpoint);
-  contUri_ = TLSRequestHelper::makeURI(FLAGS_carver_continue_endpoint);
 
   // Generate a unique identifier for this carve
   carveGuid_ = guid;
 
   // Stash the work ID to be POSTed with the carve initial request
   requestId_ = requestId;
+}
 
+Status Carver::createPaths() {
   // TODO: Adding in a manifest file of all carved files might be nice.
   carveDir_ =
       fs::temp_directory_path() / fs::path(kCarvePathPrefix + carveGuid_);
   auto ret = fs::create_directory(carveDir_);
   if (!ret) {
-    status_ = Status(1, "Failed to create carve file store");
-    return;
+    return Status::failure("Failed to create carve file store");
   }
 
   // Store the path to our archive for later exfiltration
@@ -138,24 +160,26 @@ Carver::Carver(const std::set<std::string>& paths,
 
   // Update the DB to reflect that the carve is pending.
   updateCarveValue(carveGuid_, "status", "PENDING");
+  return Status::success();
 };
 
 Carver::~Carver() {
   fs::remove_all(carveDir_);
 }
 
-void Carver::start() {
-  // If status_ is not Ok, the creation of our tmp FS failed
-  if (!status_.ok()) {
-    LOG(WARNING) << "Carver has not been properly constructed";
-    return;
+Status Carver::carve() {
+  auto s = createPaths();
+  if (!s.ok()) {
+    updateCarveValue(carveGuid_, "status", "CREATE PATHS FAILED");
+    return s;
   }
+
   const auto carvedFiles = carveAll();
-  auto s = archive(carvedFiles, archivePath_, FLAGS_carver_block_size);
+  s = archive(carvedFiles, archivePath_, FLAGS_carver_block_size);
   if (!s.ok()) {
     VLOG(1) << "Failed to create carve archive: " << s.getMessage();
     updateCarveValue(carveGuid_, "status", "ARCHIVE FAILED");
-    return;
+    return s;
   }
 
   fs::path uploadPath;
@@ -165,7 +189,7 @@ void Carver::start() {
     if (!s.ok()) {
       VLOG(1) << "Failed to compress carve archive: " << s.getMessage();
       updateCarveValue(carveGuid_, "status", "COMPRESS FAILED");
-      return;
+      return s;
     }
   } else {
     uploadPath = archivePath_;
@@ -188,8 +212,9 @@ void Carver::start() {
   if (!s.ok()) {
     VLOG(1) << "Failed to post carve: " << s.getMessage();
     updateCarveValue(carveGuid_, "status", "DATA POST FAILED");
-    return;
+    return s;
   }
+  return Status::success();
 };
 
 std::set<fs::path> Carver::carveAll() {
@@ -237,7 +262,9 @@ Status Carver::blockwiseCopy(PlatformFile& src, PlatformFile& dst) {
 };
 
 Status Carver::postCarve(const boost::filesystem::path& path) {
-  Request<TLSTransport, JSONSerializer> startRequest(startUri_);
+  // Construct the uri we post our data back to:
+  auto startUri = TLSRequestHelper::makeURI(FLAGS_carver_start_endpoint);
+  Request<TLSTransport, JSONSerializer> startRequest(startUri);
   startRequest.setOption("hostname", FLAGS_tls_hostname);
 
   // Perform the start request to get the session id
@@ -279,7 +306,8 @@ Status Carver::postCarve(const boost::filesystem::path& path) {
     return Status(1, "Empty session_id received from remote endpoint");
   }
 
-  Request<TLSTransport, JSONSerializer> contRequest(contUri_);
+  auto contUri = TLSRequestHelper::makeURI(FLAGS_carver_continue_endpoint);
+  Request<TLSTransport, JSONSerializer> contRequest(contUri);
   contRequest.setOption("hostname", FLAGS_tls_hostname);
   for (size_t i = 0; i < blkCount; i++) {
     std::vector<char> block(FLAGS_carver_block_size, 0);
@@ -305,41 +333,14 @@ Status Carver::postCarve(const boost::filesystem::path& path) {
     }
   }
 
-  updateCarveValue(carveGuid_, "status", "SUCCESS");
+  updateCarveValue(carveGuid_, "status", kCarverStatusSuccess);
   return Status::success();
 };
 
-Status carvePaths(const std::set<std::string>& paths) {
-  Status s;
-  auto guid = generateNewUUID();
-
-  JSON tree;
-  tree.add("carve_guid", guid);
-  tree.add("time", getUnixTime());
-  tree.add("status", "STARTING");
-  tree.add("sha256", "");
-  tree.add("size", -1);
-
-  if (paths.size() > 1) {
-    tree.add("path", boost::algorithm::join(paths, ","));
-  } else {
-    tree.add("path", *(paths.begin()));
+void scheduleCarves() {
+  if (!FLAGS_disable_carver && kCarverPendingCarves &&
+      !CarverRunnable::running()) {
+    Dispatcher::addService(std::make_shared<CarverRunner<Carver>>());
   }
-
-  std::string out;
-  s = tree.toString(out);
-  if (!s.ok()) {
-    VLOG(1) << "Failed to serialize carve paths: " << s.what();
-    return s;
-  }
-
-  s = setDatabaseValue(kCarveDbDomain, kCarverDBPrefix + guid, out);
-  if (!s.ok()) {
-    return s;
-  } else {
-    auto requestId = Distributed::getCurrentRequestId();
-    Dispatcher::addService(std::make_shared<Carver>(paths, guid, requestId));
-  }
-  return s;
 }
 } // namespace osquery

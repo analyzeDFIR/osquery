@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(osqueryTablesSystemTestsMain)
 
@@ -37,16 +38,16 @@ function(generateOsqueryTablesSystemLinuxTests)
 
   target_link_libraries(osquery_tables_system_linux_tests-test PRIVATE
     osquery_cxx_settings
-    osquery_config_tests_testutils
     osquery_core
     osquery_core_sql
     osquery_database
+    osquery_extensions
+    osquery_extensions_implthrift
     osquery_filesystem
-    osquery_remote_tests_remotetestutils
     osquery_tables_system_systemtable
     osquery_utils
     osquery_utils_conversions
-    plugins_database_ephemeral
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -63,16 +64,16 @@ function(generateOsqueryTablesSystemPosixTests)
 
   target_link_libraries(osquery_tables_system_posix_tests-test PRIVATE
     osquery_cxx_settings
-    osquery_config_tests_testutils
     osquery_core
     osquery_core_sql
     osquery_database
+    osquery_extensions
+    osquery_extensions_implthrift
     osquery_filesystem
-    osquery_remote_tests_remotetestutils
     osquery_tables_system_systemtable
     osquery_utils
     osquery_utils_conversions
-    plugins_database_ephemeral
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -84,16 +85,16 @@ function(generateOsqueryTablesSystemTestsSystemtablestestsTest)
 
   target_link_libraries(osquery_tables_system_tests_systemtablestests-test PRIVATE
     osquery_cxx_settings
-    osquery_config_tests_testutils
     osquery_core
     osquery_core_sql
     osquery_database
+    osquery_extensions
+    osquery_extensions_implthrift
     osquery_filesystem
-    osquery_remote_tests_remotetestutils
     osquery_tables_system_systemtable
     osquery_utils
     osquery_utils_conversions
-    plugins_database_ephemeral
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -107,6 +108,7 @@ function(generateOsqueryTablesSystemDarwinTests)
     darwin/firewall_tests.cpp
     darwin/launchd_tests.cpp
     darwin/mdfind_tests.cpp
+    darwin/packages_tests.cpp
     darwin/processes_tests.cpp
     darwin/smc_tests.cpp
     darwin/startup_items_tests.cpp
@@ -119,12 +121,13 @@ function(generateOsqueryTablesSystemDarwinTests)
     osquery_core
     osquery_core_sql
     osquery_database
+    osquery_extensions
+    osquery_extensions_implthrift
     osquery_filesystem
-    osquery_remote_tests_remotetestutils
     osquery_tables_system_systemtable
     osquery_utils
     osquery_utils_conversions
-    plugins_database_ephemeral
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -133,21 +136,22 @@ function(generateOsqueryTablesSystemWindowsTests)
   add_osquery_executable(osquery_tables_system_windows_tests-test
     windows/certificates_tests.cpp
     windows/registry_tests.cpp
+    windows/windows_eventlog_tests.cpp
     windows/windows_optional_features_tests.cpp
   )
 
   target_link_libraries(osquery_tables_system_windows_tests-test PRIVATE
     osquery_cxx_settings
-    osquery_config_tests_testutils
     osquery_core
     osquery_core_sql
     osquery_database
+    osquery_extensions
+    osquery_extensions_implthrift
     osquery_filesystem
-    osquery_remote_tests_remotetestutils
     osquery_tables_system_systemtable
     osquery_utils
     osquery_utils_conversions
-    plugins_database_ephemeral
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -160,17 +164,12 @@ function(generateOsqueryTablesSystemTestsAugeasTestsTest)
   target_link_libraries(osquery_tables_system_tests_augeastests-test PRIVATE
     osquery_cxx_settings
     osquery_config_tests_testutils
-    osquery_dispatcher
-    osquery_events
+    osquery_database
     osquery_extensions
     osquery_extensions_implthrift
-    osquery_headers
     osquery_registry
-    osquery_remote_enroll_tlsenroll
     osquery_sql
-    osquery_tables_events_eventstable
-    plugins_database_ephemeral
-    specs_tables
+    tests_helper
     thirdparty_googletest
   )
 

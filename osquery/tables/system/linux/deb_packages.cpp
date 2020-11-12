@@ -1,13 +1,23 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // see README.api of libdpkg-dev
 #define LIBDPKG_VOLATILE_API
+
+#include <boost/algorithm/string.hpp>
+
+#include <osquery/core/system.h>
+#include <osquery/core/tables.h>
+#include <osquery/filesystem/filesystem.h>
+#include <osquery/logger/logger.h>
+#include <osquery/worker/ipc/platform_table_container_ipc.h>
+#include <osquery/worker/logging/glog/glog_logger.h>
 
 extern "C" {
 #include <dpkg/dpkg-db.h>
@@ -15,13 +25,6 @@ extern "C" {
 #include <dpkg/parsedump.h>
 #include <dpkg/pkg-array.h>
 }
-
-#include <boost/algorithm/string.hpp>
-
-#include <osquery/filesystem/filesystem.h>
-#include <osquery/logger.h>
-#include <osquery/system.h>
-#include <osquery/tables.h>
 
 namespace osquery {
 namespace tables {
@@ -74,7 +77,7 @@ void dpkg_setup(struct pkg_array* packages) {
   dpkg_set_progname("osquery");
   push_error_context();
 
-  dpkg_db_set_dir("/var/lib/dpkg/");
+  dpkg_db_set_dir(kDPKGPath.c_str());
   modstatdb_init();
   modstatdb_open(msdbrw_readonly);
 
@@ -101,7 +104,10 @@ const std::map<std::string, std::string> kFieldMappings = {
     {"Architecture", "arch"},
     {"Source", "source"},
     {"Revision", "revision"},
-    {"Status", "status"}};
+    {"Status", "status"},
+    {"Maintainer", "maintainer"},
+    {"Section", "section"},
+    {"Priority", "priority"}};
 
 /**
  * @brief Field names and function references to extract information.
@@ -121,6 +127,9 @@ const struct fieldinfo fieldinfos[] = {
     {FIELD("Version"), f_version, w_version, PKGIFPOFF(version)},
     {FIELD("Revision"), f_revision, w_revision, 0},
     {FIELD("Status"), f_status, w_status, 0},
+    {FIELD("Maintainer"), f_charfield, w_charfield, PKGIFPOFF(maintainer)},
+    {FIELD("Priority"), f_priority, w_priority, 0},
+    {FIELD("Section"), f_section, w_section, 0},
     {}};
 
 void extractDebPackageInfo(const struct pkginfo* pkg, QueryData& results) {
@@ -156,14 +165,16 @@ void extractDebPackageInfo(const struct pkginfo* pkg, QueryData& results) {
     r["size"] = "0";
   }
 
+  r["pid_with_namespace"] = "0";
+
   results.push_back(r);
 }
 
-QueryData genDebPackages(QueryContext& context) {
+QueryData genDebPackagesImpl(QueryContext& context, Logger& logger) {
   QueryData results;
 
   if (!osquery::isDirectory(kDPKGPath)) {
-    TLOG << "Cannot find DPKG database: " << kDPKGPath;
+    logger.vlog(1, "Cannot find DPKG database: " + kDPKGPath);
     return results;
   }
 
@@ -187,6 +198,15 @@ QueryData genDebPackages(QueryContext& context) {
 
   dpkg_teardown(&packages);
   return results;
+}
+
+QueryData genDebPackages(QueryContext& context) {
+  if (hasNamespaceConstraint(context)) {
+    return generateInNamespace(context, "deb_packages", genDebPackagesImpl);
+  } else {
+    GLOGLogger logger;
+    return genDebPackagesImpl(context, logger);
+  }
 }
 } // namespace tables
 } // namespace osquery

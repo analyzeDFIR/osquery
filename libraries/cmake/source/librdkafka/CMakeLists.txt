@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(librdkafkaMain)
   generateLibrdkafka()
@@ -117,6 +118,9 @@ function(generateLibrdkafka)
     )
   endif()
 
+  target_compile_definitions(thirdparty_librdkafka_c PUBLIC
+    LIBRDKAFKA_STATICLIB
+  )
 
   target_link_libraries(thirdparty_librdkafka_c PUBLIC
     thirdparty_openssl
@@ -134,11 +138,11 @@ function(generateLibrdkafka)
 
   if(DEFINED PLATFORM_LINUX)
     target_include_directories(thirdparty_librdkafka_c PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/linux/dummy"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/linux/dummy"
     )
   elseif(DEFINED PLATFORM_MACOS)
     target_include_directories(thirdparty_librdkafka_c PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/macos/dummy"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/macos/dummy"
     )
   endif()
 
@@ -171,6 +175,10 @@ function(generateLibrdkafkaxx)
     COPYONLY
   )
 
+  target_compile_definitions(thirdparty_librdkafka_cxx PUBLIC
+    LIBRDKAFKA_STATICLIB
+  )
+
   target_link_libraries(thirdparty_librdkafka_cxx PRIVATE
     thirdparty_cxx_settings
   )
@@ -181,17 +189,13 @@ function(generateLibrdkafkaxx)
 
   if(DEFINED PLATFORM_LINUX)
     target_include_directories(thirdparty_librdkafka_cxx PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/linux/dummy"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/linux/dummy"
     )
   elseif(DEFINED PLATFORM_MACOS)
     target_include_directories(thirdparty_librdkafka_cxx PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/macos/dummy"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/macos/dummy"
     )
   endif()
-
-  target_compile_definitions(thirdparty_librdkafka_cxx PUBLIC
-    LIBRDKAFKA_STATICLIB
-  )
 
   target_include_directories(thirdparty_librdkafka_cxx SYSTEM INTERFACE
     "${CMAKE_CURRENT_BINARY_DIR}/include"

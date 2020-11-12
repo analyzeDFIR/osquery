@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(lzmaMain)
   set(library_root "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -76,6 +77,8 @@ function(lzmaMain)
     "${library_root}/src/liblzma/simple/simple_coder.c"
     "${library_root}/src/liblzma/simple/simple_decoder.c"
     "${library_root}/src/liblzma/simple/simple_encoder.c"
+    "${library_root}/src/liblzma/simple/armthumb.c"
+    "${library_root}/src/liblzma/simple/arm.c"
     "${library_root}/src/liblzma/simple/x86.c"
   )
 
@@ -110,11 +113,11 @@ function(lzmaMain)
 
   if(DEFINED PLATFORM_LINUX)
     target_include_directories(thirdparty_lzma PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/linux"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/linux"
     )
   elseif(DEFINED PLATFORM_MACOS)
     target_include_directories(thirdparty_lzma PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/config/macos"
+      "${CMAKE_CURRENT_SOURCE_DIR}/config/${TARGET_PROCESSOR}/macos"
     )
   elseif(DEFINED PLATFORM_WINDOWS)
     target_include_directories(thirdparty_lzma PRIVATE

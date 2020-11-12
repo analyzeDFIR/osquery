@@ -1,9 +1,10 @@
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // Sanity check integration test for hash
@@ -39,8 +40,8 @@ class Hash : public testing::Test {
 };
 
 TEST_F(Hash, test_sanity) {
-  const std::string query = std::string{"select * from hash where path = '"} +
-                            path.string() + std::string{"'"};
+  const std::string query =
+      "select * from hash where path = '" + path.string() + "'";
 
   QueryData data = execute_query(query);
 
@@ -68,12 +69,11 @@ TEST_F(Hash, test_sanity) {
     ASSERT_EQ(data[0]["ssdeep"], "3:f4oo8MRwRJFGW1gC64:f4kPvtHF");
   }
 
-  if (isPlatform(PlatformType::TYPE_LINUX)) {
-    row_map["pid_with_namespace"] = IntType;
-    row_map["mount_namespace_id"] = NormalType;
-  }
-
   validate_rows(data, row_map);
+
+  if (isPlatform(PlatformType::TYPE_LINUX)) {
+    validate_container_rows("hash", row_map, "path = '" + path.string() + "'");
+  }
 }
 
 } // namespace table_tests

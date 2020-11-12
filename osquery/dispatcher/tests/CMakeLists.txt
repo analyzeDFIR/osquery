@@ -1,8 +1,9 @@
-# Copyright (c) 2014-present, Facebook, Inc.
-# All rights reserved.
+# Copyright (c) 2014-present, The osquery authors
 #
-# This source code is licensed in accordance with the terms specified in
-# the LICENSE file found in the root directory of this source tree.
+# This source code is licensed as defined by the LICENSE file found in the
+# root directory of this source tree.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
 function(osqueryDispatcherTestsMain)
   generateOsqueryDispatcherTestsTest()
@@ -15,15 +16,11 @@ function(generateOsqueryDispatcherTestsTest)
   target_link_libraries(osquery_dispatcher_tests-test PRIVATE
     osquery_cxx_settings
     osquery_database
-    osquery_distributed
-    osquery_events
+    osquery_dispatcher
     osquery_extensions
     osquery_extensions_implthrift
     osquery_registry
-    osquery_remote_enroll_tlsenroll
-    plugins_config_tlsconfig
-    plugins_database_ephemeral
-    specs_tables
+    tests_helper
     thirdparty_googletest
   )
 endfunction()
@@ -34,16 +31,12 @@ function(generateOsqueryDispatcherTestsSchedulerTest)
     target_link_libraries(osquery_dispatcher_tests_scheduler-test PRIVATE
     osquery_cxx_settings
     osquery_database
-    osquery_distributed
-    osquery_events
+    osquery_dispatcher_scheduler
     osquery_extensions
     osquery_extensions_implthrift
     osquery_registry
-    osquery_remote_enroll_tlsenroll
-    plugins_config_tlsconfig
-    plugins_database_ephemeral
-    specs_tables
     osquery_utils_system_time
+    tests_helper
     thirdparty_googletest
   )
 endfunction()

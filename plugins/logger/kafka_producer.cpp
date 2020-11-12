@@ -1,10 +1,11 @@
 
 /**
- *  Copyright (c) 2014-present, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, The osquery authors
  *
- *  This source code is licensed in accordance with the terms specified in
- *  the LICENSE file found in the root directory of this source tree.
+ * This source code is licensed as defined by the LICENSE file found in the
+ * root directory of this source tree.
+ *
+ * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
  */
 
 // clang-format off
@@ -22,11 +23,12 @@
 #include <boost/algorithm/string/find.hpp>
 
 #include <osquery/config/config.h>
-#include <osquery/core.h>
-#include <osquery/dispatcher.h>
-#include <osquery/flags.h>
-#include <osquery/registry_factory.h>
-#include <osquery/system.h>
+#include <osquery/core/core.h>
+#include <osquery/dispatcher/dispatcher.h>
+#include <osquery/core/flags.h>
+#include <osquery/registry/registry_factory.h>
+#include <osquery/core/system.h>
+#include <osquery/utils/json/json.h>
 
 #include <plugins/config/parsers/kafka_topics.h>
 #include <plugins/logger/kafka_producer.h>
@@ -106,77 +108,29 @@ REGISTER(KafkaProducerPlugin, "logger", "kafka_producer");
 std::once_flag KafkaProducerPlugin::shutdownFlag_;
 
 /**
- * @brief find occurrences of substring in a string
- *
- * Create a vector of all indexes at which substring
- * occurs in payload.
- */
-inline void findAllOccurrences(std::vector<size_t>& occurrences, const std::string& payload, const std::string subString) {
-    // Find first occurrence of subString in payload
-    size_t idx = payload.find(subString);
-    // Until end of string
-    while (idx != std::string::npos) {
-        // Add string index to vector
-        occurrences.push_back(idx);
-        // Find next occurrence of subString
-        idx = payload.find(subString, idx + subString.size());
-    }
-}
-
-/**
  * @brief extracts query name from result payload
  *
  * Parses the query name from snapshot, batch, and event
  * mode JSON result objects.
  */
 inline std::string getMsgName(const std::string& payload) {
-    // Searching for "name" key
-    const std::string fieldName = "\"name\"";
-    // Initialize occurrences vector
-    std::vector<size_t> occurrences;
-    // Find all occurrences of "name" key in payload
-    findAllOccurrences(occurrences, payload, fieldName);
-    // Initialize "name" key index
-    size_t fieldIndex;
+  const std::string fieldName = "name";
 
-    // If number of occurrences is 0, return base topic key
-    if (occurrences.empty()) {
-        return "";
-    }
-    // If number of occurrences is 1, use that index
-    if (occurrences.size() == 1) {
-        fieldIndex = occurrences.front();
-    // Otherwise, determine result mode to choose proper "name" key
-    } else {
-        // Search for "action" key
-        const bool has_action_key = payload.find("\"action\"") != std::string::npos;
-        // If no "action" key present, is batch mode, use last index in occurrences
-        if (!has_action_key) {
-            fieldIndex = occurrences.back();
-        // Otherwise, is either event or snapshot mode
-        } else {
-            // If "action" key's value is "snapshot" then use last index in occurrences
-            if (payload.find("\"action\":\"snapshot\"") != std::string::npos) {
-                fieldIndex = occurrences.back();
-            // Otherwise, use first index in occurrences
-            } else {
-                fieldIndex = occurrences.front();
-            }
-        }
-    }
-
-    // Parse value from "name" key
-    size_t first = payload.find('"', fieldIndex + 6);
-    if (first == std::string::npos) {
-        return "";
-    }
-
-    size_t last = payload.find('"', first + 1);
-    if (last == std::string::npos) {
-        return "";
-    }
-
-    return payload.substr(first + 1, last - first - 1);
+  // Parse payload as JSON
+  auto doc = JSON::newObject();
+  // If failed to parse as JSON, or JSON object doesn't have "name" top-level
+  // key, return base topic
+  if (!doc.fromString(payload, JSON::ParseMode::Iterative) ||
+      !doc.doc().HasMember(fieldName)) {
+    return "";
+  }
+  auto& name = doc.doc()[fieldName];
+  // If value for "name" isn't a String, return base topic
+  if (!name.IsString()) {
+    return "";
+  }
+  // Otherwise, return value
+  return name.GetString();
 }
 
 /**
